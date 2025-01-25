@@ -8,6 +8,10 @@ import Question from "./Question";
 import NextButton from "./NextButton";
 import Progress from "./Progress";
 import FinishedScreen from "./FinishedScreen";
+import Footer from "./Footer";
+import Timer from "./Timer";
+
+const SECONDS_PER_QUESTION = 30;
 
 const initialState = {
   questions: [],
@@ -16,6 +20,7 @@ const initialState = {
   answer: null,
   points: 0,
   highscore: 0,
+  remainingSeconds: null,
 };
 
 function reducer(state, action) {
@@ -25,7 +30,11 @@ function reducer(state, action) {
     case "dataFailed":
       return { ...state, status: "error" };
     case "start":
-      return { ...state, status: "active" };
+      return {
+        ...state,
+        status: "active",
+        remainingSeconds: state.questions.length * SECONDS_PER_QUESTION,
+      };
     case "newAnswer":
       const question = state.questions[state.index];
       return {
@@ -41,8 +50,7 @@ function reducer(state, action) {
     case "finish":
       return {
         ...state,
-        highscore:
-          state.highscore < state.points ? state.points : state.highscore,
+        highscore: Math.max(state.highscore, state.points),
         status: "finished",
       };
     case "restart":
@@ -52,14 +60,23 @@ function reducer(state, action) {
         highscore: state.highscore,
         questions: state.questions,
       };
+    case "tick":
+      return {
+        ...state,
+        remainingSeconds: state.remainingSeconds - 1,
+        status: state.remainingSeconds === 0 ? "finished" : state.status,
+        highscore: Math.max(state.highscore, state.points),
+      };
     default:
       throw new Error("Action unkown");
   }
 }
 
 export default function App() {
-  const [{ questions, status, index, answer, points, highscore }, dispatch] =
-    useReducer(reducer, initialState);
+  const [
+    { questions, status, index, answer, points, highscore, remainingSeconds },
+    dispatch,
+  ] = useReducer(reducer, initialState);
 
   const maxPoints = questions.reduce((prev, curr) => prev + curr.points, 0);
 
@@ -106,13 +123,16 @@ export default function App() {
               dispatch={dispatch}
               answer={answer}
             />
-            {answer !== null && (
-              <NextButton
-                dispatch={dispatch}
-                index={index}
-                numOfQuestions={questions.length}
-              />
-            )}
+            <Footer>
+              <Timer remainingSeconds={remainingSeconds} dispatch={dispatch} />
+              {answer !== null && (
+                <NextButton
+                  dispatch={dispatch}
+                  index={index}
+                  numOfQuestions={questions.length}
+                />
+              )}
+            </Footer>
           </>
         )}
         {status === "finished" && (
